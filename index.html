@@ -2,60 +2,48 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>実験台予約</title>
+<title>実験台予約（共有版）</title>
 
 <style>
-body {
-  font-family: sans-serif;
-  margin: 20px;
-}
+body { font-family:sans-serif; margin:20px; }
 
-/* 全体 */
 #timeline {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  height: 900px;
-  border: 1px solid #ccc;
+  display:grid;
+  grid-template-columns: repeat(3,1fr);
+  height:900px;
 }
 
-/* 各列 */
 .column {
-  position: relative;
-  border-left: 1px solid #ccc;
+  position:relative;
+  border:1px solid #ccc;
 }
 
-/* 15分ごとの線 */
 .cell {
-  height: calc(100% / 60);
-  border-bottom: 1px solid #eee;
-  position: relative;
+  height:calc(100% / 60);
+  border-bottom:1px solid #eee;
 }
 
-/* 1時間ラベル */
 .label {
-  position: absolute;
-  left: 5px;
-  font-size: 10px;
-  top: 0;
+  position:absolute;
+  left:5px;
+  font-size:10px;
 }
 
-/* 予約バー */
 .block {
-  position: absolute;
-  left: 5%;
-  width: 90%;
-  background: #bcdbf7;
-  font-size: 11px;
-  padding: 2px;
-  box-sizing: border-box;
-  border-radius: 4px;
+  position:absolute;
+  left:5%;
+  width:90%;
+  background:#bcdbf7;
+  font-size:11px;
+  padding:2px;
+  border-radius:4px;
 }
+
 </style>
 </head>
-
 <body>
 
-<h2>実験台予約</h2>
+<h2>実験台予約（共有版）</h2>
 
 <button onclick="changeDay(-1)">◀</button>
 <span id="date"></span>
@@ -72,82 +60,102 @@ body {
 
 <ul id="list"></ul>
 
-<script>
-let currentDate = new Date();
-let data = {};
+<script type="module">
 
-function dateKey(){
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCqkj_33myR7SlosVQL0BOC7hPItnPWY4s",
+  authDomain: "lab-reservation-f7b03.firebaseapp.com",
+  projectId: "lab-reservation-f7b03",
+  storageBucket: "lab-reservation-f7b03.firebasestorage.app",
+  messagingSenderId: "899111838795",
+  appId: "1:899111838795:web:dad4f05db537fcec0b59ce"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let schedules = [];
+let currentDate = new Date();
+
+// 日付キー
+function dateKey() {
   return currentDate.toISOString().split("T")[0];
 }
 
-function changeDay(d){
+// 日付変更
+window.changeDay = function(d){
   currentDate.setDate(currentDate.getDate()+d);
+  update();
+};
+
+// 表示更新
+function update(){
+  document.getElementById("date").textContent =
+    currentDate.toLocaleDateString();
+
   render();
   renderList();
-}
-
-function toMin(t){
-  let [h,m]=t.split(":");
-  return h*60 + +m;
-}
-
-function fmt(m){
-  let h=Math.floor(m/60);
-  let mm=m%60;
-  return `${h}:${mm.toString().padStart(2,"0")}`;
 }
 
 // 追加
-function add(){
+window.add = async function(){
   let s=document.getElementById("start").value;
   let e=document.getElementById("end").value;
-  let name=document.getElementById("name").value||"名無し";
+  let n=document.getElementById("name").value || "名無し";
 
-  if(!s||!e)return;
+  if(!s||!e) return;
 
-  let start=toMin(s);
-  let end=toMin(e);
+  await addDoc(collection(db,"schedules"),{
+    start:s,
+    end:e,
+    name:n,
+    date:dateKey()
+  });
+};
 
-  let key=dateKey();
-  if(!data[key])data[key]=[];
+// リアルタイム取得
+onSnapshot(collection(db,"schedules"), snap=>{
+  schedules=[];
+  snap.forEach(d=>{
+    schedules.push({
+      id:d.id,
+      ...d.data()
+    });
+  });
+  update();
+});
 
-  let same=data[key].filter(d=>d.start===start && d.end===end).length;
-
-  if(same>=3){
-    alert("同じ時間帯は3件まで");
-    return;
-  }
-
-  data[key].push({start,end,name});
-  render();
-  renderList();
+// 削除
+function deleteItem(id){
+  deleteDoc(doc(db,"schedules",id));
 }
 
 // 描画
 function render(){
-  document.getElementById("date").textContent =
-    currentDate.toLocaleDateString();
-
   const timeline=document.getElementById("timeline");
   timeline.innerHTML="";
 
-  // 3列（左・中・右）
+  let dayData = schedules.filter(s=>s.date===dateKey());
+
   for(let c=0;c<3;c++){
     let col=document.createElement("div");
     col.className="column";
 
-    // 60マス（15分×15時間）
     for(let i=0;i<60;i++){
       let cell=document.createElement("div");
       cell.className="cell";
 
-      // 1時間ごと表示
       if(i%4===0){
         let hour=6+(i/4);
         let label=document.createElement("div");
         label.className="label";
+        label.style.top=(i*(100/60))+"%";
         label.textContent=hour+":00";
-        cell.appendChild(label);
+        col.appendChild(label);
       }
 
       col.appendChild(cell);
@@ -156,58 +164,28 @@ function render(){
     timeline.appendChild(col);
   }
 
-  draw();
-}
+  const cols=document.querySelectorAll(".column");
 
-// 描画（予約バー）
-function draw(){
-  const key=dateKey();
-  if(!data[key])return;
+  dayData.forEach((d,i)=>{
 
-  const columns=document.querySelectorAll(".column");
+    let col=cols[i%3];
 
-  data[key].forEach(d=>{
+    let start=toMin(d.start);
+    let end=toMin(d.end);
 
-    let placed=false;
+    let top=((start-360)/900)*100;
+    let height=((end-start)/900)*100;
 
-    for(let i=0;i<3;i++){
-      if(placed)break;
+    let block=document.createElement("div");
+    block.className="block";
 
-      let col=columns[i];
+    block.style.top=top+"%";
+    block.style.height=height+"%";
 
-      let startIndex=(d.start - 6*60)/15;
-      let length=(d.end - d.start)/15;
+    block.textContent =
+      `${d.start}〜${d.end} ${d.name}`;
 
-      let topPercent = startIndex*(100/60);
-      let heightPercent = length*(100/60);
-
-      // 重なりチェック
-      let overlap=false;
-      col.querySelectorAll(".block").forEach(b=>{
-        let bs=+b.dataset.start;
-        let be=+b.dataset.end;
-        if(!(d.end<=bs || d.start>=be)){
-          overlap=true;
-        }
-      });
-
-      if(!overlap){
-        let block=document.createElement("div");
-        block.className="block";
-
-        block.style.top = topPercent + "%";
-        block.style.height = heightPercent + "%";
-
-        block.dataset.start=d.start;
-        block.dataset.end=d.end;
-
-        block.textContent =
-          `${fmt(d.start)}〜${fmt(d.end)} ${d.name}`;
-
-        col.appendChild(block);
-        placed=true;
-      }
-    }
+    col.appendChild(block);
   });
 }
 
@@ -216,30 +194,30 @@ function renderList(){
   const ul=document.getElementById("list");
   ul.innerHTML="";
 
-  const key=dateKey();
-  if(!data[key])return;
+  let dayData = schedules.filter(s=>s.date===dateKey());
 
-  data[key].forEach((d,i)=>{
+  dayData.forEach(d=>{
     let li=document.createElement("li");
 
     li.textContent =
-      `${fmt(d.start)}〜${fmt(d.end)} ${d.name}`;
+      `${d.start}〜${d.end} ${d.name}`;
 
     let btn=document.createElement("button");
     btn.textContent="削除";
-    btn.onclick=()=>{
-      data[key].splice(i,1);
-      render();
-      renderList();
-    };
+    btn.onclick=()=>deleteItem(d.id);
 
     li.appendChild(btn);
     ul.appendChild(li);
   });
 }
 
-render();
-</script>
+function toMin(t){
+  let [h,m]=t.split(":");
+  return h*60 + +m;
+}
 
+update();
+
+</script>
 </body>
 </html>
