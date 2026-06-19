@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>実験台予約</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  margin: 20px;
+}
+
+/* 全体 */
+#timeline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: 900px;
+  border: 1px solid #ccc;
+}
+
+/* 各列 */
+.column {
+  position: relative;
+  border-left: 1px solid #ccc;
+}
+
+/* 15分ごとの線 */
+.cell {
+  height: calc(100% / 60);
+  border-bottom: 1px solid #eee;
+  position: relative;
+}
+
+/* 1時間ラベル */
+.label {
+  position: absolute;
+  left: 5px;
+  font-size: 10px;
+  top: 0;
+}
+
+/* 予約バー */
+.block {
+  position: absolute;
+  left: 5%;
+  width: 90%;
+  background: #bcdbf7;
+  font-size: 11px;
+  padding: 2px;
+  box-sizing: border-box;
+  border-radius: 4px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>実験台予約</h2>
+
+<button onclick="changeDay(-1)">◀</button>
+<span id="date"></span>
+<button onclick="changeDay(1)">▶</button>
+
+<br><br>
+
+開始 <input type="time" id="start" step="900">
+終了 <input type="time" id="end" step="900">
+名前 <input id="name">
+<button onclick="add()">追加</button>
+
+<div id="timeline"></div>
+
+<ul id="list"></ul>
+
+<script>
+let currentDate = new Date();
+let data = {};
+
+function dateKey(){
+  return currentDate.toISOString().split("T")[0];
+}
+
+function changeDay(d){
+  currentDate.setDate(currentDate.getDate()+d);
+  render();
+  renderList();
+}
+
+function toMin(t){
+  let [h,m]=t.split(":");
+  return h*60 + +m;
+}
+
+function fmt(m){
+  let h=Math.floor(m/60);
+  let mm=m%60;
+  return `${h}:${mm.toString().padStart(2,"0")}`;
+}
+
+// 追加
+function add(){
+  let s=document.getElementById("start").value;
+  let e=document.getElementById("end").value;
+  let name=document.getElementById("name").value||"名無し";
+
+  if(!s||!e)return;
+
+  let start=toMin(s);
+  let end=toMin(e);
+
+  let key=dateKey();
+  if(!data[key])data[key]=[];
+
+  let same=data[key].filter(d=>d.start===start && d.end===end).length;
+
+  if(same>=3){
+    alert("同じ時間帯は3件まで");
+    return;
+  }
+
+  data[key].push({start,end,name});
+  render();
+  renderList();
+}
+
+// 描画
+function render(){
+  document.getElementById("date").textContent =
+    currentDate.toLocaleDateString();
+
+  const timeline=document.getElementById("timeline");
+  timeline.innerHTML="";
+
+  // 3列（左・中・右）
+  for(let c=0;c<3;c++){
+    let col=document.createElement("div");
+    col.className="column";
+
+    // 60マス（15分×15時間）
+    for(let i=0;i<60;i++){
+      let cell=document.createElement("div");
+      cell.className="cell";
+
+      // 1時間ごと表示
+      if(i%4===0){
+        let hour=6+(i/4);
+        let label=document.createElement("div");
+        label.className="label";
+        label.textContent=hour+":00";
+        cell.appendChild(label);
+      }
+
+      col.appendChild(cell);
+    }
+
+    timeline.appendChild(col);
+  }
+
+  draw();
+}
+
+// 描画（予約バー）
+function draw(){
+  const key=dateKey();
+  if(!data[key])return;
+
+  const columns=document.querySelectorAll(".column");
+
+  data[key].forEach(d=>{
+
+    let placed=false;
+
+    for(let i=0;i<3;i++){
+      if(placed)break;
+
+      let col=columns[i];
+
+      let startIndex=(d.start - 6*60)/15;
+      let length=(d.end - d.start)/15;
+
+      let topPercent = startIndex*(100/60);
+      let heightPercent = length*(100/60);
+
+      // 重なりチェック
+      let overlap=false;
+      col.querySelectorAll(".block").forEach(b=>{
+        let bs=+b.dataset.start;
+        let be=+b.dataset.end;
+        if(!(d.end<=bs || d.start>=be)){
+          overlap=true;
+        }
+      });
+
+      if(!overlap){
+        let block=document.createElement("div");
+        block.className="block";
+
+        block.style.top = topPercent + "%";
+        block.style.height = heightPercent + "%";
+
+        block.dataset.start=d.start;
+        block.dataset.end=d.end;
+
+        block.textContent =
+          `${fmt(d.start)}〜${fmt(d.end)} ${d.name}`;
+
+        col.appendChild(block);
+        placed=true;
+      }
+    }
+  });
+}
+
+// リスト
+function renderList(){
+  const ul=document.getElementById("list");
+  ul.innerHTML="";
+
+  const key=dateKey();
+  if(!data[key])return;
+
+  data[key].forEach((d,i)=>{
+    let li=document.createElement("li");
+
+    li.textContent =
+      `${fmt(d.start)}〜${fmt(d.end)} ${d.name}`;
+
+    let btn=document.createElement("button");
+    btn.textContent="削除";
+    btn.onclick=()=>{
+      data[key].splice(i,1);
+      render();
+      renderList();
+    };
+
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+
+render();
+</script>
+
+</body>
+</html>
