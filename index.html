@@ -7,7 +7,6 @@
 <style>
 body { font-family:sans-serif; margin:20px; }
 
-/* 🔥 これ追加済み（ボタン押せるように） */
 ul {
   position: relative;
   z-index: 10;
@@ -31,15 +30,14 @@ button {
   border-left:1px solid #ccc;
 }
 
+/* ✅ 15分線 */
 .cell {
   height:calc(100% / 60);
-  border-bottom:1px solid #ddd;
+  border-bottom:1px solid #ccc;
+  box-sizing: border-box;
 }
 
-.hour-line {
-  border-bottom:1px solid #999;
-}
-
+/* ✅ 時間ラベル */
 .time-label {
   position:absolute;
   left:5px;
@@ -47,6 +45,7 @@ button {
   transform: translateY(-50%);
 }
 
+/* ✅ 予約バー */
 .block {
   position:absolute;
   left:5%;
@@ -56,8 +55,6 @@ button {
   padding:2px;
   border-radius:4px;
   box-sizing: border-box;
-}
-
 }
 </style>
 </head>
@@ -114,6 +111,7 @@ function update(){
   renderList();
 }
 
+// ✅ 追加
 window.add = async function(){
   let s=document.getElementById("start").value;
   let e=document.getElementById("end").value;
@@ -129,6 +127,7 @@ window.add = async function(){
   });
 };
 
+// ✅ リアルタイム
 onSnapshot(collection(db,"schedules"), snap=>{
   schedules=[];
   snap.forEach(d=>{
@@ -140,10 +139,12 @@ onSnapshot(collection(db,"schedules"), snap=>{
   update();
 });
 
+// ✅ 削除
 function deleteItem(id){
   deleteDoc(doc(db,"schedules",id));
 }
 
+// ✅ 描画
 function render(){
   const timeline=document.getElementById("timeline");
   timeline.innerHTML="";
@@ -159,12 +160,14 @@ function render(){
       cell.className="cell";
 
       if(i%4===0){
-        cell.classList.add("hour-line");
-
         let hour=6+(i/4);
         let label=document.createElement("div");
         label.className="time-label";
-        label.style.top=(i*(100/60))+"%";
+
+        /* ✅ 位置完全一致 */
+        let pos = (i*(100/60));
+        label.style.top = `calc(${pos}% + 1px)`;
+
         label.textContent=hour+":00";
         col.appendChild(label);
       }
@@ -192,13 +195,14 @@ function render(){
         let start=toMin(d.start);
         let end=toMin(d.end);
 
-　　　　let top = ((start - 360) / 15) * (100 / 60);
-　　　　let height = ((end - start) / 15) * (100 / 60);
-        
+        /* ✅ 15分完全一致＋ズレ補正 */
+        let top = ((start - 360) / 15) * (100 / 60);
+        let height = ((end - start) / 15) * (100 / 60);
+
         let block=document.createElement("div");
         block.className="block";
 
-        block.style.top=top+"%";
+        block.style.top=`calc(${top}% + 1px)`;
         block.style.height=height+"%";
 
         block.textContent =
@@ -211,6 +215,7 @@ function render(){
   });
 }
 
+// ✅ リスト
 function renderList(){
   const ul=document.getElementById("list");
   ul.innerHTML="";
@@ -243,3 +248,4 @@ update();
 
 </body>
 </html>
+``
