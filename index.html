@@ -7,6 +7,18 @@
 <style>
 body { font-family:sans-serif; margin:20px; }
 
+/* 🔥 これ追加済み（ボタン押せるように） */
+ul {
+  position: relative;
+  z-index: 10;
+}
+
+button {
+  position: relative;
+  z-index: 20;
+  cursor: pointer;
+}
+
 #timeline {
   display:grid;
   grid-template-columns: repeat(3,1fr);
@@ -21,11 +33,11 @@ body { font-family:sans-serif; margin:20px; }
 
 .cell {
   height:calc(100% / 60);
-  border-bottom:1px solid #ddd; /* ←15分線 */
+  border-bottom:1px solid #ddd;
 }
 
 .hour-line {
-  border-bottom:2px solid #999; /* ←1時間線 */
+  border-bottom:2px solid #999;
 }
 
 .time-label {
@@ -98,7 +110,6 @@ function update(){
   renderList();
 }
 
-// 追加
 window.add = async function(){
   let s=document.getElementById("start").value;
   let e=document.getElementById("end").value;
@@ -114,7 +125,6 @@ window.add = async function(){
   });
 };
 
-// リアルタイム
 onSnapshot(collection(db,"schedules"), snap=>{
   schedules=[];
   snap.forEach(d=>{
@@ -126,12 +136,10 @@ onSnapshot(collection(db,"schedules"), snap=>{
   update();
 });
 
-// 削除
 function deleteItem(id){
   deleteDoc(doc(db,"schedules",id));
 }
 
-// 描画
 function render(){
   const timeline=document.getElementById("timeline");
   timeline.innerHTML="";
@@ -146,7 +154,6 @@ function render(){
       let cell=document.createElement("div");
       cell.className="cell";
 
-      // 1時間ごと強調
       if(i%4===0){
         cell.classList.add("hour-line");
 
@@ -200,7 +207,6 @@ function render(){
   });
 }
 
-// リスト
 function renderList(){
   const ul=document.getElementById("list");
   ul.innerHTML="";
