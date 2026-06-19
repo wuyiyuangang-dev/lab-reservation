@@ -189,9 +189,9 @@ function render(){
         let start=toMin(d.start);
         let end=toMin(d.end);
 
-        let top=((start-360)/900)*100;
-        let height=((end-start)/900)*100;
-
+　　　　let top = ((start - 360) / 15) * (100 / 60);
+　　　　let height = ((end - start) / 15) * (100 / 60);
+        
         let block=document.createElement("div");
         block.className="block";
 
