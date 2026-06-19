@@ -1,4 +1,128 @@
-// 描画
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>実験台予約（共有版）</title>
+
+<style>
+body { font-family:sans-serif; margin:20px; }
+
+#timeline {
+  display:grid;
+  grid-template-columns: repeat(3,1fr);
+  height:900px;
+}
+
+.column {
+  position:relative;
+  border:1px solid #ccc;
+}
+
+.cell {
+  height:calc(100% / 60);
+  border-bottom:1px solid #eee;
+}
+
+.label {
+  position:absolute;
+  left:5px;
+  font-size:10px;
+}
+
+.block {
+  position:absolute;
+  left:5%;
+  width:90%;
+  background:#bcdbf7;
+  font-size:11px;
+  padding:2px;
+  border-radius:4px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>実験台予約（共有版）</h2>
+
+<button onclick="changeDay(-1)">◀</button>
+<span id="date"></span>
+<button onclick="changeDay(1)">▶</button>
+
+<br><br>
+
+開始 <input type="time" id="start" step="900">
+終了 <input type="time" id="end" step="900">
+名前 <input id="name">
+<button onclick="add()">追加</button>
+
+<div id="timeline"></div>
+<ul id="list"></ul>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc }
+from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCqkj_33myR7SlosVQL0BOC7hPItnPWY4s",
+  authDomain: "lab-reservation-f7b03.firebaseapp.com",
+  projectId: "lab-reservation-f7b03",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let schedules = [];
+let currentDate = new Date();
+
+function dateKey() {
+  return currentDate.toISOString().split("T")[0];
+}
+
+window.changeDay = function(d){
+  currentDate.setDate(currentDate.getDate()+d);
+  update();
+};
+
+function update(){
+  document.getElementById("date").textContent =
+    currentDate.toLocaleDateString();
+  render();
+  renderList();
+}
+
+window.add = async function(){
+  let s=document.getElementById("start").value;
+  let e=document.getElementById("end").value;
+  let n=document.getElementById("name").value || "名無し";
+
+  if(!s||!e) return;
+
+  await addDoc(collection(db,"schedules"),{
+    start:s,
+    end:e,
+    name:n,
+    date:dateKey()
+  });
+};
+
+onSnapshot(collection(db,"schedules"), snap=>{
+  schedules=[];
+  snap.forEach(d=>{
+    schedules.push({
+      id:d.id,
+      ...d.data()
+    });
+  });
+  update();
+});
+
+function deleteItem(id){
+  deleteDoc(doc(db,"schedules",id));
+}
+
 function render(){
   const timeline=document.getElementById("timeline");
   timeline.innerHTML="";
@@ -13,14 +137,12 @@ function render(){
 
   const cols=document.querySelectorAll(".column");
 
-  // 各列ごとに管理
-  let colData = [[],[],[]];
+  let colData=[[],[],[]];
 
   dayData.forEach(d=>{
-
     for(let i=0;i<3;i++){
-      let conflict = colData[i].some(existing=>{
-        return !(d.end<=existing.start || d.start>=existing.end);
+      let conflict=colData[i].some(ex=>{
+        return !(d.end<=ex.start || d.start>=ex.end);
       });
 
       if(!conflict){
@@ -40,7 +162,7 @@ function render(){
         block.style.top=top+"%";
         block.style.height=height+"%";
 
-        block.textContent =
+        block.textContent=
           `${d.start}〜${d.end} ${d.name}`;
 
         col.appendChild(block);
@@ -49,4 +171,36 @@ function render(){
     }
   });
 }
-``
+
+function renderList(){
+  const ul=document.getElementById("list");
+  ul.innerHTML="";
+
+  let dayData = schedules.filter(s=>s.date===dateKey());
+
+  dayData.forEach(d=>{
+    let li=document.createElement("li");
+
+    li.textContent =
+      `${d.start}〜${d.end} ${d.name}`;
+
+    let btn=document.createElement("button");
+    btn.textContent="削除";
+    btn.onclick=()=>deleteItem(d.id);
+
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+}
+
+function toMin(t){
+  let [h,m]=t.split(":");
+  return h*60 + +m;
+}
+
+update();
+
+</script>
+
+</body>
+</html>
