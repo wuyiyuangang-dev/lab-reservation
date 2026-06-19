@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>実験台予約（共有版）</title>
+<title>実験台予約</title>
 
 <style>
 body { font-family:sans-serif; margin:20px; }
@@ -11,19 +11,24 @@ body { font-family:sans-serif; margin:20px; }
   display:grid;
   grid-template-columns: repeat(3,1fr);
   height:900px;
+  border:1px solid #ccc;
 }
 
 .column {
   position:relative;
-  border:1px solid #ccc;
+  border-left:1px solid #ccc;
 }
 
 .cell {
   height:calc(100% / 60);
-  border-bottom:1px solid #eee;
+  border-bottom:1px solid #ddd; /* ←15分線 */
 }
 
-.label {
+.hour-line {
+  border-bottom:2px solid #999; /* ←1時間線 */
+}
+
+.time-label {
   position:absolute;
   left:5px;
   font-size:10px;
@@ -43,7 +48,7 @@ body { font-family:sans-serif; margin:20px; }
 
 <body>
 
-<h2>実験台予約（共有版）</h2>
+<h2>実験台予約</h2>
 
 <button onclick="changeDay(-1)">◀</button>
 <span id="date"></span>
@@ -77,7 +82,7 @@ const db = getFirestore(app);
 let schedules = [];
 let currentDate = new Date();
 
-function dateKey() {
+function dateKey(){
   return currentDate.toISOString().split("T")[0];
 }
 
@@ -93,6 +98,7 @@ function update(){
   renderList();
 }
 
+// 追加
 window.add = async function(){
   let s=document.getElementById("start").value;
   let e=document.getElementById("end").value;
@@ -108,6 +114,7 @@ window.add = async function(){
   });
 };
 
+// リアルタイム
 onSnapshot(collection(db,"schedules"), snap=>{
   schedules=[];
   snap.forEach(d=>{
@@ -119,10 +126,12 @@ onSnapshot(collection(db,"schedules"), snap=>{
   update();
 });
 
+// 削除
 function deleteItem(id){
   deleteDoc(doc(db,"schedules",id));
 }
 
+// 描画
 function render(){
   const timeline=document.getElementById("timeline");
   timeline.innerHTML="";
@@ -132,11 +141,30 @@ function render(){
   for(let c=0;c<3;c++){
     let col=document.createElement("div");
     col.className="column";
+
+    for(let i=0;i<60;i++){
+      let cell=document.createElement("div");
+      cell.className="cell";
+
+      // 1時間ごと強調
+      if(i%4===0){
+        cell.classList.add("hour-line");
+
+        let hour=6+(i/4);
+        let label=document.createElement("div");
+        label.className="time-label";
+        label.style.top=(i*(100/60))+"%";
+        label.textContent=hour+":00";
+        col.appendChild(label);
+      }
+
+      col.appendChild(cell);
+    }
+
     timeline.appendChild(col);
   }
 
   const cols=document.querySelectorAll(".column");
-
   let colData=[[],[],[]];
 
   dayData.forEach(d=>{
@@ -162,7 +190,7 @@ function render(){
         block.style.top=top+"%";
         block.style.height=height+"%";
 
-        block.textContent=
+        block.textContent =
           `${d.start}〜${d.end} ${d.name}`;
 
         col.appendChild(block);
@@ -172,6 +200,7 @@ function render(){
   });
 }
 
+// リスト
 function renderList(){
   const ul=document.getElementById("list");
   ul.innerHTML="";
